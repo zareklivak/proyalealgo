@@ -5,6 +5,7 @@ import random
 import math
 import matplotlib.pyplot as plt
 
+# Disclaimer with default slider values
 default_disclaimer = """
 <div style="font-family: Arial, sans-serif; font-size: 16px; color: #2E86C1; background-color: #E8F6F3; padding: 10px; border-radius: 5px;">
     <strong>Default Parameters:</strong> <br>
@@ -32,6 +33,10 @@ st.sidebar.header("Exponential Decay Rates")
 stake_decay = st.sidebar.slider("Stake Decay Rate", min_value=5.0, max_value=25.0, value=10.0, step=0.1)
 streak_decay = st.sidebar.slider("Streak Decay Rate", min_value=1.0, max_value=10.0, value=5.0, step=0.1)
 
+# Scaling factor slider for streak multiplier
+st.sidebar.header("Streak Multiplier Scaling")
+streak_multiplier = st.sidebar.slider("Streak Multiplier", min_value=0.0, max_value=1.0, value=0.3, step=0.01)
+
 # Fixed minimum stake
 min_stake = 3
 
@@ -39,8 +44,9 @@ min_stake = 3
 def generate_players(num_players, min_stake, max_stake, stake_decay, streak_decay):
     players = []
     for i in range(num_players):
-        # Generate stake and daily streak based on adjustable exponential decay rates
+        # Generate stake with stake decay rate affecting only stakes
         stake = max(min_stake, int(random.expovariate(1 / (max_stake / stake_decay))))
+        # Generate daily streak with streak decay rate affecting only streaks
         daily_streak = max(1, int(random.expovariate(1 / streak_decay)))
         players.append({"User": f"Player {i+1}", "Stake": stake, "Daily Streak": daily_streak})
     return players
@@ -75,26 +81,32 @@ total_pool = sum(player["Stake"] for player in players)
 rewards_pool = total_pool * 0.15  # 15% of the total pool is for rewards
 pool_after_fee = rewards_pool * 0.95  # Deduct 5% fee from rewards pool
 
-# Calculate probabilities and select winners
-calculate_probabilities(players)
+# Calculate probabilities and select winners using the streak_multiplier from the slider
+calculate_probabilities(players, streak_multiplier=streak_multiplier)
 winners = distribute_winnings(players, num_distributed_winners, pool_after_fee)
 
+# Convert winners to a DataFrame
 winners_df = pd.DataFrame(winners)[["User", "Stake", "Daily Streak", "Winning Amount"]]
 
+# Create columns for layout, with a wider left column for the table
 left_column, right_column = st.columns([3, 2])
 
+# Display results summary in the left column
 with left_column:
     st.subheader("Results Summary")
     st.write(f"Total Pool: ${total_pool:,.2f}")
     st.write(f"Rewards Pool (15% of Total): ${rewards_pool:,.2f}")
     st.write(f"Pool After Fee (5% Deduction): ${pool_after_fee:,.2f}")
 
+    # Display winners table with increased width
     st.subheader("Winners")
     st.dataframe(winners_df, height=400, width=600)
 
+# Visualization of Stake and Streak Distributions in the right column
 with right_column:
     st.subheader("Distribution Graphs")
 
+    # Stake Distribution Plot
     stake_values = [player["Stake"] for player in players]
     fig, ax = plt.subplots()
     ax.hist(stake_values, bins=50, color="skyblue", edgecolor="black")
@@ -103,6 +115,7 @@ with right_column:
     ax.set_ylabel("Frequency")
     st.pyplot(fig)
 
+    # Streak Distribution Plot
     streak_values = [player["Daily Streak"] for player in players]
     fig, ax = plt.subplots()
     ax.hist(streak_values, bins=50, color="salmon", edgecolor="black")
